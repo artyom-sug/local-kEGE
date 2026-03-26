@@ -1,0 +1,62 @@
+:root {
+    color-scheme: light;
+  }
+  
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fb;
+    color: #111827;
+  }
+  
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+  }
+  
+  .page__header {
+    margin-bottom: 24px;
+  }
+  
+  .page__header h1 {
+    margin: 0 0 8px;
+  }
+  
+  .page__header p {
+    margin: 0;
+    color: #4b5563;
+  }
+  
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    margin-bottom: 16px;
+  }
+  
+  .metric {
+    font-size: 40px;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+  
+  .list {
+    display: grid;
+    gap: 8px;
+  }
+  
+  .list-item {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f9fafb;
+  }
+  

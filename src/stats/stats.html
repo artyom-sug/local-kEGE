@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>kompege tracker — статистика</title>
+    <link rel="stylesheet" href="./stats.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page__header">
+        <h1>kompege tracker</h1>
+        <p>Статистика по отмеченным задачам</p>
+      </header>
+
+      <section class="cards">
+        <article class="card">
+          <h2>Всего отмечено</h2>
+          <div id="total-count" class="metric">0</div>
+        </article>
+
+        <article class="card">
+          <h2>Решено</h2>
+          <div id="solved-count" class="metric">0</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>По типам задач</h2>
+        <div id="by-type">Пока нет данных</div>
+      </section>
+
+      <section class="card">
+        <h2>По сложности</h2>
+        <div id="by-difficulty">Пока нет данных</div>
+      </section>
+
+      <section class="card">
+        <h2>Последние отмеченные</h2>
+        <div id="recent-list">Пока нет данных</div>
+      </section>
+    </main>
+
+    <script src="../common/constants.js"></script>
+    <script src="../common/storage.js"></script>
+    <script src="./stats.js"></script>
+  </body>
+</html>
