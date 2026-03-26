@@ -1,32 +1,24 @@
 .kt-toggle-wrapper {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 12px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #f3f4f6;
-    font-size: 12px;
-    line-height: 1;
-    vertical-align: middle;
-  }
-  
-  .kt-toggle-label {
-    color: #111827;
-    user-select: none;
-  }
-  
-  .kt-toggle-input {
-    cursor: pointer;
-  }
-  
-  .kt-badge-solved {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  .kt-menu-link {
-    cursor: pointer;
-  }
-  
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px;
+  padding: 2px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #f9fafb;
+  vertical-align: middle;
+}
+
+.kt-toggle-input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.kt-toggle-label {
+  font-size: 12px;
+  line-height: 1;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}

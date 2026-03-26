@@ -1,21 +1,37 @@
-(async function initKompegeTracker() {
-    console.log("[kompege tracker] content script loaded");
+(function initKompegeTracker() {
+    if (window.location.pathname !== "/task") {
+      return;
+    }
   
-    // TODO:
-    // Главный orchestration-файл.
-    // Здесь позже будет:
-    // 1) поиск всех видимых задач на странице;
-    // 2) извлечение taskId из DOM / URL / data-атрибутов;
-    // 3) вставка тумблера возле каждой задачи;
-    // 4) запуск MutationObserver;
-    // 5) добавление пункта меню "Статистика".
+    console.log("[kompege tracker] task page loaded");
   
-    KT_MENU.injectStatsMenuItem();
-  
-    KT_OBSERVER.start(() => {
-      // TODO:
-      // Повторно сканировать DOM и аккуратно дорисовывать тумблеры
-      // только для новых задач.
-    });
+    scanTasks();
+    KT_OBSERVER.start(scanTasks);
   })();
+  
+  function scanTasks() {
+    const detailsNodes = document.querySelectorAll("#app span.details");
+  
+    detailsNodes.forEach((detailsElement) => {
+      const taskId = extractTaskId(detailsElement);
+  
+      if (!taskId) {
+        return;
+      }
+  
+      if (KT_TASK_DOM.hasToggle(detailsElement, taskId)) {
+        return;
+      }
+  
+      const toggleElement = KT_TASK_DOM.createToggle(taskId);
+      KT_TASK_DOM.mountToggleNearTask(detailsElement, toggleElement);
+    });
+  }
+  
+  function extractTaskId(detailsElement) {
+    const text = detailsElement.textContent || "";
+    const match = text.match(/№\s*(\d+)/);
+  
+    return match ? match[1] : null;
+  }
   

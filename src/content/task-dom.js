@@ -1,20 +1,20 @@
 window.KT_TASK_DOM = {
-    createToggle(taskId, initialSolved, onChange) {
+    createToggle(taskId) {
       const wrapper = document.createElement("span");
       wrapper.className = KT_CONSTANTS.CSS.TOGGLE_WRAPPER;
+      wrapper.setAttribute("data-kt-toggle-for", taskId);
+  
+      const inputId = `kt-toggle-${taskId}`;
   
       const input = document.createElement("input");
       input.type = "checkbox";
-      input.checked = Boolean(initialSolved);
+      input.id = inputId;
       input.className = KT_CONSTANTS.CSS.TOGGLE_INPUT;
   
-      const label = document.createElement("span");
+      const label = document.createElement("label");
       label.className = KT_CONSTANTS.CSS.TOGGLE_LABEL;
-      label.textContent = "Решал";
-  
-      input.addEventListener("change", () => {
-        onChange(input.checked);
-      });
+      label.setAttribute("for", inputId);
+      label.textContent = "решал";
   
       wrapper.appendChild(input);
       wrapper.appendChild(label);
@@ -22,13 +22,23 @@ window.KT_TASK_DOM = {
       return wrapper;
     },
   
-    mountToggleNearTask(taskElement, toggleElement) {
-      // TODO:
-      // Здесь нужна привязка к реальной DOM-структуре kompege.ru.
-      // Нужно понять:
-      // 1) какой контейнер считать "карточкой задачи";
-      // 2) рядом с каким элементом вставлять тумблер;
-      // 3) как не вставлять дубликаты при повторных рендерах.
+    hasToggle(detailsElement, taskId) {
+      return Boolean(
+        detailsElement.querySelector(`[data-kt-toggle-for="${taskId}"]`)
+      );
+    },
+  
+    mountToggleNearTask(detailsElement, toggleElement) {
+      const firstInnerSpan = Array.from(detailsElement.childNodes).find(
+        (node) => node.nodeType === Node.ELEMENT_NODE && node.tagName === "SPAN"
+      );
+  
+      if (firstInnerSpan) {
+        detailsElement.insertBefore(toggleElement, firstInnerSpan);
+        return;
+      }
+  
+      detailsElement.appendChild(toggleElement);
     }
   };
   

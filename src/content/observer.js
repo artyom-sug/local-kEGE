@@ -6,19 +6,48 @@ window.KT_OBSERVER = {
         this.observer.disconnect();
       }
   
-      this.observer = new MutationObserver((mutations) => {
-        // TODO:
-        // Сейчас реагируем грубо на любые изменения.
-        // После изучения DOM kompege.ru можно будет сузить условия.
-        if (mutations.length > 0) {
+      let scheduled = false;
+  
+      const scheduleScan = () => {
+        if (scheduled) {
+          return;
+        }
+  
+        scheduled = true;
+  
+        requestAnimationFrame(() => {
+          scheduled = false;
           onRelevantDomChange();
+        });
+      };
+  
+      this.observer = new MutationObserver((mutations) => {
+        const hasRelevantChanges = mutations.some((mutation) => {
+          return Array.from(mutation.addedNodes).some((node) => {
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+              return false;
+            }
+  
+            return (
+              node.matches?.("span.details, .tasklist, table, tbody, tr") ||
+              node.querySelector?.("span.details")
+            );
+          });
+        });
+  
+        if (hasRelevantChanges) {
+          scheduleScan();
         }
       });
   
-      this.observer.observe(document.body, {
+      const root = document.querySelector("#app") || document.body;
+  
+      this.observer.observe(root, {
         childList: true,
         subtree: true
       });
+  
+      scheduleScan();
     }
   };
   
