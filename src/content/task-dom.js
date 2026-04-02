@@ -17,7 +17,7 @@ window.KT_TASK_DOM = {
     const label = document.createElement("label");
     label.className = KT_CONSTANTS.CSS.TOGGLE_LABEL;
     label.setAttribute("for", inputId);
-    label.textContent = "решал";
+    label.textContent = "решена";
 
     input.addEventListener("change", async () => {
       const checked = input.checked;
