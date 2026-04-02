@@ -1,13 +1,26 @@
 (function initKompegeTracker() {
+  console.log("[kompege tracker] loaded");
+
+  waitForMenuAndInject();
+
   if (window.location.pathname !== "/task") {
     return;
   }
 
-  console.log("[kompege tracker] task page loaded");
-
   scanTasks();
   KT_OBSERVER.start(scanTasks);
 })();
+
+function waitForMenuAndInject() {
+  const interval = setInterval(() => {
+    const nav = document.querySelector(".nav-wrap");
+
+    if (nav) {
+      KT_MENU.injectStatsMenuItem();
+      clearInterval(interval);
+    }
+  }, 300);
+}
 
 async function scanTasks() {
   const detailsNodes = document.querySelectorAll("#app span.details");
