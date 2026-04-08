@@ -24,18 +24,20 @@ function waitForMenuAndInject() {
   }
 }
 
-// ================= MAIN ROUTER =================
+// ================= MAIN =================
 async function handleDynamicPage() {
-  if (window.location.pathname === "/task") {
+  const path = window.location.pathname;
+
+  if (path === "/task") {
     await scanArchiveTasks();
   }
 
-  if (window.location.pathname === "/variant") {
+  if (path === "/variant") {
     await scanVariantTasks();
   }
 
-  if (window.location.pathname === "/course") {
-    await scanCourseTask();
+  if (path === "/course" || path === "/homework") {
+    await scanCourseLikeTask();
   }
 
   await tryImportKimResults();
@@ -65,8 +67,8 @@ async function scanVariantTasks() {
   }
 }
 
-// ================= COURSE =================
-async function scanCourseTask() {
+// ================= COURSE + HOMEWORK =================
+async function scanCourseLikeTask() {
   const title = document.querySelector("#app .task .text .text-bolder");
   if (!title) return;
 
@@ -74,21 +76,21 @@ async function scanCourseTask() {
   if (!taskId) return;
 
   await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
-  await applyCourseState(title, taskId);
+  await applyCourseLikeState(title, taskId);
 }
 
-async function applyCourseState(titleElement, taskId) {
+async function applyCourseLikeState(titleElement, taskId) {
   const current = document.querySelector("#navTasks .block.task-current");
   if (!current) return;
 
   const isSolved = current.classList.contains("task-good");
 
-  // обновляем storage
+  // сохраняем
   if (isSolved) {
     await KT_TASK_STATE.setSolved(taskId, true);
   }
 
-  // 🔥 ВАЖНО: обновляем UI тумблера
+  // 🔥 обновляем UI мгновенно
   const toggle = titleElement.querySelector(`[data-kt-toggle-for="${taskId}"]`);
 
   if (toggle) {
@@ -128,7 +130,7 @@ const KT_VARIANT_WATCHER = {
   }
 };
 
-// --- COURSE ---
+// --- COURSE + HOMEWORK ---
 const KT_COURSE_WATCHER = {
   interval: null,
   lastTaskId: null,
@@ -137,7 +139,9 @@ const KT_COURSE_WATCHER = {
     if (this.interval) return;
 
     this.interval = setInterval(async () => {
-      if (window.location.pathname !== "/course") return;
+      const path = window.location.pathname;
+
+      if (path !== "/course" && path !== "/homework") return;
 
       const title = document.querySelector("#app .task .text .text-bolder");
       if (!title) return;
@@ -151,7 +155,7 @@ const KT_COURSE_WATCHER = {
         await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
       }
 
-      await applyCourseState(title, taskId);
+      await applyCourseLikeState(title, taskId);
     }, 300);
   }
 };
