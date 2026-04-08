@@ -10,11 +10,17 @@ window.KT_MENU = {
     const navWrap = document.querySelector(".nav-wrap");
     if (!navWrap) return;
 
+    if (navWrap.querySelector('[data-kt-menu="progress"]')) {
+      this.injected = true;
+      return;
+    }
+
     const existingItem = navWrap.querySelector("p");
     if (!existingItem) return;
 
     const item = existingItem.cloneNode(true);
     item.textContent = "Мой прогресс";
+    item.setAttribute("data-kt-menu", "progress");
 
     const newItem = item.cloneNode(true);
 
@@ -25,6 +31,23 @@ window.KT_MENU = {
     navWrap.appendChild(newItem);
 
     this.injected = true;
+  },
+
+  removeStatsMenuItem() {
+    const item = document.querySelector('[data-kt-menu="progress"]');
+    if (item) {
+      item.remove();
+    }
+
+    if (this.isStatsPageOpen()) {
+      this.restoreMainPage();
+    }
+
+    this.injected = false;
+  },
+
+  isStatsPageOpen() {
+    return Boolean(document.querySelector(".kt-stats"));
   },
 
   openStatsPage() {
@@ -40,7 +63,9 @@ window.KT_MENU = {
       this.footerElement = footer;
     }
 
-    if (footer) footer.style.display = "none";
+    if (footer) {
+      footer.style.display = "none";
+    }
 
     title.textContent = "Мой прогресс и статистика";
 
@@ -78,7 +103,6 @@ window.KT_MENU = {
 
     const solvedTasks = entries.filter(([, t]) => t.solved);
 
-    // ===== Мини-статистика =====
     document.getElementById("kt-total").textContent =
       `Решено задач: ${solvedTasks.length}`;
 
@@ -90,7 +114,6 @@ window.KT_MENU = {
     document.getElementById("kt-recent").textContent =
       "Последние: " + (recent.join(", ") || "—");
 
-    // ===== КРУГОВАЯ =====
     const diffMap = {
       0: "Базовый",
       1: "Средний",
@@ -105,16 +128,9 @@ window.KT_MENU = {
       diffCount[key] = (diffCount[key] || 0) + 1;
     }
 
-    // Желаемый порядок категорий
-    const order = ["Базовый", "Средний", "Сложный", "Гроб"];
-    const orderedData = {};
-    for (const key of order) {
-      if (diffCount[key]) orderedData[key] = diffCount[key];
-    }
-    drawPieChart("kt-pie", orderedData);
-    renderLegend("kt-pie-legend", orderedData);
+    drawPieChart("kt-pie", diffCount);
+    renderLegend("kt-pie-legend", diffCount);
 
-    // ===== СТОЛБЧАТАЯ =====
     const counts = {};
 
     for (let i = 1; i <= 27; i++) counts[i] = 0;
@@ -143,17 +159,27 @@ window.KT_MENU = {
   }
 };
 
-// ===== PIE =====
 function drawPieChart(canvasId, data) {
   const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
   const ctx = canvas.getContext("2d");
-
   const total = Object.values(data).reduce((a, b) => a + b, 0);
-  let start = 0;
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!total) {
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Нет данных", canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  let start = 0;
   const colors = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444"];
 
-  Object.entries(data).forEach(([_, value], i) => {
+  Object.entries(data).forEach(([, value], i) => {
     const angle = (value / total) * Math.PI * 2;
 
     ctx.beginPath();
@@ -166,9 +192,10 @@ function drawPieChart(canvasId, data) {
   });
 }
 
-// ===== LEGEND =====
 function renderLegend(containerId, data) {
   const container = document.getElementById(containerId);
+  if (!container) return;
+
   container.innerHTML = "";
 
   const colors = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444"];
@@ -184,50 +211,48 @@ function renderLegend(containerId, data) {
 
     container.appendChild(row);
   });
+
+  if (!Object.keys(data).length) {
+    const row = document.createElement("div");
+    row.className = "kt-legend-item";
+    row.textContent = "Нет данных";
+    container.appendChild(row);
+  }
 }
 
-// ===== BAR =====
 function drawBarChart(canvasId, data) {
   const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
   const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const entries = Object.entries(data)
     .map(([k, v]) => [Number(k), v])
     .sort((a, b) => a[0] - b[0]);
 
-  const max = Math.max(...entries.map(e => e[1]), 1);
+  const max = Math.max(...entries.map((e) => e[1]), 1);
 
-  const padding = 30;
-  const height = canvas.height - padding * 2;
-  const width = canvas.width;
-
-  const barWidth = width / entries.length;
-
-  // Очищаем холст перед отрисовкой
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.font = "10px Arial";
-  ctx.textAlign = "center"; // центрируем текст по горизонтали
+  const leftPad = 14;
+  const rightPad = 14;
+  const topPad = 28;
+  const bottomPad = 28;
+  const chartHeight = canvas.height - topPad - bottomPad;
+  const chartWidth = canvas.width - leftPad - rightPad;
+  const barWidth = chartWidth / entries.length;
 
   entries.forEach(([num, val], i) => {
-    const h = (val / max) * height;
+    const h = val > 0 ? (val / max) * chartHeight : 0;
+    const x = leftPad + i * barWidth;
+    const y = topPad + (chartHeight - h);
 
-    const x = i * barWidth;
-    const y = canvas.height - h - padding; // верхняя граница столбика
-    const centerX = x + barWidth / 2;      // центр столбика по X
-
-    // Рисуем столбик
     ctx.fillStyle = "#60a5fa";
-    ctx.fillRect(x + 2, y, barWidth - 4, h);
+    ctx.fillRect(x + 2, y, Math.max(barWidth - 4, 2), h);
 
     ctx.fillStyle = "#e5e7eb";
-    // Значение сверху (центрировано, над столбиком)
-    if (val > 0) ctx.fillText(val, centerX, y - 4);
-
-    // Номер снизу (центрировано, ближе к столбикам)
-    // Основание столбика: canvas.height - padding
-    // Подпись рисуем чуть ниже основания (отступ 12px)
-    const labelY = canvas.height - padding + 12;
-    ctx.fillText(num, centerX, labelY);
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(String(val), x + barWidth / 2, y - 4);
+    ctx.fillText(String(num), x + barWidth / 2, canvas.height - 8);
   });
 }

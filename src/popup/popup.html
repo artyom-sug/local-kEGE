@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kompege tracker</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <div class="card">
+        <div class="brand">
+          <div class="brand__title">kompege tracker</div>
+          <div class="brand__subtitle">Отмечай решённые задачи и смотри прогресс</div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row__label">Расширение</div>
+            <div class="toggle-row__hint" id="status-text">Включено</div>
+          </div>
+
+          <label class="switch">
+            <input id="enabled-toggle" type="checkbox" />
+            <span class="switch__slider"></span>
+          </label>
+        </div>
+
+        <div class="footer-note">
+          Изменения применяются сразу на открытых страницах kompege.ru
+        </div>
+      </div>
+    </main>
+
+    <script src="../common/constants.js"></script>
+    <script src="../common/storage.js"></script>
+    <script src="./popup.js"></script>
+  </body>
+</html>

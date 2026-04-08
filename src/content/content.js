@@ -1,22 +1,66 @@
 const KT_IMPORTED_KIMS = new Set();
 
-// ================= INIT =================
 (function initKompegeTracker() {
   console.log("[kompege tracker] loaded");
+
+  setupStorageListener();
+  bootstrap();
+})();
+
+async function bootstrap() {
+  const enabled = await KT_STORAGE.isEnabled();
+
+  if (!enabled) {
+    disableUi();
+    return;
+  }
 
   waitForMenuAndInject();
   handleDynamicPage();
 
   KT_OBSERVER.start(() => {
-    waitForMenuAndInject();
-    handleDynamicPage();
+    handleIfEnabled();
   });
 
   KT_VARIANT_WATCHER.start();
   KT_COURSE_WATCHER.start();
-})();
+}
 
-// ================= MENU =================
+async function handleIfEnabled() {
+  const enabled = await KT_STORAGE.isEnabled();
+
+  if (!enabled) {
+    disableUi();
+    return;
+  }
+
+  waitForMenuAndInject();
+  handleDynamicPage();
+}
+
+function setupStorageListener() {
+  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName !== "sync") return;
+
+    const settingsKey = KT_CONSTANTS.STORAGE_KEYS.SETTINGS;
+    if (!changes[settingsKey]) return;
+
+    const enabled = await KT_STORAGE.isEnabled();
+
+    if (enabled) {
+      waitForMenuAndInject();
+      await handleDynamicPage();
+    } else {
+      disableUi();
+    }
+  });
+}
+
+function disableUi() {
+  KT_TASK_DOM.removeAllToggles();
+  KT_MENU.removeStatsMenuItem();
+}
+
 function waitForMenuAndInject() {
   const nav = document.querySelector(".nav-wrap");
   if (nav) {
@@ -24,7 +68,6 @@ function waitForMenuAndInject() {
   }
 }
 
-// ================= MAIN =================
 async function handleDynamicPage() {
   const path = window.location.pathname;
 
@@ -43,7 +86,6 @@ async function handleDynamicPage() {
   await tryImportKimResults();
 }
 
-// ================= ARCHIVE =================
 async function scanArchiveTasks() {
   const nodes = document.querySelectorAll("#app span.details");
 
@@ -55,7 +97,6 @@ async function scanArchiveTasks() {
   }
 }
 
-// ================= VARIANT =================
 async function scanVariantTasks() {
   const nodes = document.querySelectorAll("#app .task .text .text-bolder");
 
@@ -67,7 +108,6 @@ async function scanVariantTasks() {
   }
 }
 
-// ================= COURSE + HOMEWORK =================
 async function scanCourseLikeTask() {
   const title = document.querySelector("#app .task .text .text-bolder");
   if (!title) return;
@@ -85,12 +125,10 @@ async function applyCourseLikeState(titleElement, taskId) {
 
   const isSolved = current.classList.contains("task-good");
 
-  // сохраняем
   if (isSolved) {
     await KT_TASK_STATE.setSolved(taskId, true);
   }
 
-  // 🔥 обновляем UI мгновенно
   const toggle = titleElement.querySelector(`[data-kt-toggle-for="${taskId}"]`);
 
   if (toggle) {
@@ -102,9 +140,6 @@ async function applyCourseLikeState(titleElement, taskId) {
   }
 }
 
-// ================= WATCHERS =================
-
-// --- VARIANT ---
 const KT_VARIANT_WATCHER = {
   interval: null,
   lastTaskId: null,
@@ -113,6 +148,9 @@ const KT_VARIANT_WATCHER = {
     if (this.interval) return;
 
     this.interval = setInterval(async () => {
+      const enabled = await KT_STORAGE.isEnabled();
+      if (!enabled) return;
+
       if (window.location.pathname !== "/variant") return;
 
       const title = document.querySelector("#app .task .text .text-bolder");
@@ -123,14 +161,12 @@ const KT_VARIANT_WATCHER = {
 
       if (taskId !== this.lastTaskId) {
         this.lastTaskId = taskId;
-
         await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
       }
     }, 250);
   }
 };
 
-// --- COURSE + HOMEWORK ---
 const KT_COURSE_WATCHER = {
   interval: null,
   lastTaskId: null,
@@ -139,6 +175,9 @@ const KT_COURSE_WATCHER = {
     if (this.interval) return;
 
     this.interval = setInterval(async () => {
+      const enabled = await KT_STORAGE.isEnabled();
+      if (!enabled) return;
+
       const path = window.location.pathname;
 
       if (path !== "/course" && path !== "/homework") return;
@@ -151,7 +190,6 @@ const KT_COURSE_WATCHER = {
 
       if (taskId !== this.lastTaskId) {
         this.lastTaskId = taskId;
-
         await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
       }
 
@@ -160,13 +198,11 @@ const KT_COURSE_WATCHER = {
   }
 };
 
-// ================= COMMON =================
 function extractNumber(text) {
   const match = text.match(/№\s*(\d+)/);
   return match ? match[1] : null;
 }
 
-// ================= KIM =================
 async function tryImportKimResults() {
   const kim = document.querySelector("p.kim");
   if (!kim) return;

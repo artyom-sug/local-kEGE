@@ -63,7 +63,6 @@ window.KT_TASK_DOM = {
           (toggle) => toggle.getAttribute("data-kt-toggle-for") === taskId
         );
 
-        // Если уже есть нужный тумблер — обновляем его состояние и удаляем дубликаты.
         if (matchingToggle) {
           toggles.forEach((toggle) => {
             if (toggle !== matchingToggle) {
@@ -81,7 +80,6 @@ window.KT_TASK_DOM = {
           return;
         }
 
-        // Если нужного тумблера нет — удаляем все старые и вставляем новый.
         toggles.forEach((toggle) => toggle.remove());
 
         const toggle = await this.createToggle(taskId);
@@ -90,5 +88,9 @@ window.KT_TASK_DOM = {
 
     this.updateLocks.set(container, nextUpdate);
     await nextUpdate;
+  },
+
+  removeAllToggles() {
+    document.querySelectorAll("[data-kt-toggle-for]").forEach((el) => el.remove());
   }
 };

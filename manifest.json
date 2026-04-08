@@ -1,41 +1,41 @@
 {
-    "manifest_version": 3,
-    "name": "kompege tracker",
-    "version": "0.1.0",
-    "description": "Отмечает решённые задачи на kompege.ru и показывает статистику.",
-    "permissions": [
-      "storage"
-    ],
-    "host_permissions": [
-      "https://kompege.ru/*"
-    ],
-    "background": {
-      "service_worker": "src/background.js"
-    },
-    "action": {
-      "default_title": "kompege tracker"
-    },
-    "content_scripts": [
-      {
-        "matches": [
-          "https://kompege.ru/*"
-        ],
-        "js": [
-          "src/common/constants.js",
-          "src/common/storage.js",
-          "src/common/utils.js",
-          "src/content/task-api.js",
-          "src/content/task-state.js",
-          "src/content/task-dom.js",
-          "src/content/observer.js",
-          "src/content/menu.js",
-          "src/content/content.js"
-        ],
-        "css": [
-          "src/content/content.css"
-        ],
-        "run_at": "document_idle"
-      }
-    ]
-  }
-  
+  "manifest_version": 3,
+  "name": "kompege tracker",
+  "version": "0.1.0",
+  "description": "Отмечает решённые задачи на kompege.ru и показывает статистику.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://kompege.ru/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "kompege tracker",
+    "default_popup": "src/popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kompege.ru/*"
+      ],
+      "js": [
+        "src/common/constants.js",
+        "src/common/storage.js",
+        "src/common/utils.js",
+        "src/content/task-api.js",
+        "src/content/task-state.js",
+        "src/content/task-dom.js",
+        "src/content/observer.js",
+        "src/content/menu.js",
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
