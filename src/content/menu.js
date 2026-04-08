@@ -124,8 +124,10 @@ window.KT_MENU = {
     const diffCount = {};
 
     for (const [, t] of solvedTasks) {
-      const key = diffMap[t.difficulty] || "Неизвестно";
-      diffCount[key] = (diffCount[key] || 0) + 1;
+      const key = diffMap[t.difficulty];
+      if (key !== undefined) {
+        diffCount[key] = (diffCount[key] || 0) + 1;
+      }
     }
 
     drawPieChart("kt-pie", diffCount);
