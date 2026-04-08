@@ -1,26 +1,48 @@
 .kt-toggle-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 8px;
-  padding: 2px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 999px;
-  background: #f9fafb;
+  margin: 0 5px;
   vertical-align: middle;
+  transform: translateY(-1px);
 }
 
+/* скрываем input */
 .kt-toggle-input {
-  margin: 0;
-  cursor: pointer;
+  position: absolute;
+  opacity: 0;
 }
 
+/* сам переключатель */
 .kt-toggle-label {
-  font-size: 12px;
-  line-height: 1;
-  color: #374151;
+  width: 2.2em;
+  height: 1.2em;
+  background: #6b7280;
+  border-radius: 999px;
+  position: relative;
   cursor: pointer;
-  user-select: none;
+  transition: background 0.2s;
+}
+
+/* кружок */
+.kt-toggle-label::after {
+  content: "";
+  position: absolute;
+  top: 0.15em;
+  left: 0.15em;
+  width: 0.9em;
+  height: 0.9em;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+/* включено */
+.kt-toggle-input:checked + .kt-toggle-label {
+  background: #22c55e;
+}
+
+.kt-toggle-input:checked + .kt-toggle-label::after {
+  transform: translateX(1em);
 }
 
 .kt-stats {

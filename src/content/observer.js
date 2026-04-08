@@ -23,18 +23,17 @@ window.KT_OBSERVER = {
 
     this.observer = new MutationObserver((mutations) => {
       const hasRelevantChanges = mutations.some((mutation) => {
-        return Array.from(mutation.addedNodes).some((node) => {
-          if (node.nodeType !== Node.ELEMENT_NODE) {
-            return false;
-          }
+        if (mutation.type === "characterData") {
+          return true;
+        }
 
-          return (
-            node.matches?.(
-              "span.details, .tasklist, table, tbody, tr, p.kim, .buttons, .result, .nav-wrap"
-            ) ||
-            node.querySelector?.("span.details, p.kim, .buttons table, .nav-wrap")
-          );
-        });
+        if (mutation.type === "childList") {
+          if (mutation.addedNodes.length || mutation.removedNodes.length) {
+            return true;
+          }
+        }
+
+        return false;
       });
 
       if (hasRelevantChanges) {
@@ -46,7 +45,8 @@ window.KT_OBSERVER = {
 
     this.observer.observe(root, {
       childList: true,
-      subtree: true
+      subtree: true,
+      characterData: true
     });
 
     scheduleScan();

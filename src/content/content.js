@@ -1,10 +1,51 @@
 const KT_IMPORTED_KIMS = new Set();
 
+const KT_VARIANT_WATCHER = {
+  intervalId: null,
+  lastTaskId: null,
+
+  start() {
+    if (this.intervalId) {
+      return;
+    }
+
+    this.intervalId = window.setInterval(async () => {
+      if (window.location.pathname !== "/variant") {
+        this.lastTaskId = null;
+        return;
+      }
+
+      const titleElement = document.querySelector("#app .task .text .text-bolder");
+      if (!titleElement) {
+        this.lastTaskId = null;
+        return;
+      }
+
+      const taskId = extractNumber(titleElement.textContent || "");
+      if (!taskId) {
+        this.lastTaskId = null;
+        return;
+      }
+
+      if (taskId !== this.lastTaskId) {
+        this.lastTaskId = taskId;
+        await KT_TASK_DOM.mountOrUpdateToggle(titleElement, taskId);
+      } else {
+        const existingToggle = KT_TASK_DOM.getExistingToggle(titleElement);
+        if (!existingToggle) {
+          await KT_TASK_DOM.mountOrUpdateToggle(titleElement, taskId);
+        }
+      }
+    }, 250);
+  }
+};
+
 (function initKompegeTracker() {
   console.log("[kompege tracker] loaded");
 
   waitForMenuAndInject();
   handleDynamicPage();
+  KT_VARIANT_WATCHER.start();
 
   KT_OBSERVER.start(() => {
     waitForMenuAndInject();
@@ -22,46 +63,55 @@ function waitForMenuAndInject() {
 
 async function handleDynamicPage() {
   if (window.location.pathname === "/task") {
-    await scanTasks();
+    await scanArchiveTasks();
+  }
+
+  if (window.location.pathname === "/variant") {
+    await scanVariantTasks();
   }
 
   await tryImportKimResults();
 }
 
-async function scanTasks() {
+async function scanArchiveTasks() {
   const detailsNodes = document.querySelectorAll("#app span.details");
 
-  for (const detailsElement of detailsNodes) {
-    const taskId = extractTaskId(detailsElement);
-
+  for (const el of detailsNodes) {
+    const taskId = extractNumber(el.textContent || "");
     if (!taskId) {
       continue;
     }
 
-    if (KT_TASK_DOM.hasToggle(detailsElement, taskId)) {
-      continue;
-    }
-
-    await KT_TASK_DOM.mountToggleNearTask(detailsElement, taskId);
+    await KT_TASK_DOM.mountOrUpdateToggle(el, taskId);
   }
 }
 
-function extractTaskId(detailsElement) {
-  const text = detailsElement.textContent || "";
-  const match = text.match(/№\s*(\d+)/);
+async function scanVariantTasks() {
+  const titleNodes = document.querySelectorAll("#app .task .text .text-bolder");
 
+  for (const el of titleNodes) {
+    const taskId = extractNumber(el.textContent || "");
+    if (!taskId) {
+      continue;
+    }
+
+    KT_VARIANT_WATCHER.lastTaskId = taskId;
+    await KT_TASK_DOM.mountOrUpdateToggle(el, taskId);
+  }
+}
+
+function extractNumber(text) {
+  const match = text.match(/№\s*(\d+)/);
   return match ? match[1] : null;
 }
 
 async function tryImportKimResults() {
   const kimParagraph = document.querySelector("p.kim");
-
   if (!kimParagraph) {
     return;
   }
 
   const kimNumber = extractKimNumber(kimParagraph.textContent || "");
-
   if (!kimNumber) {
     return;
   }
@@ -71,26 +121,26 @@ async function tryImportKimResults() {
   }
 
   const scoreRows = extractKimScoreRows();
-
   if (!scoreRows.length) {
     return;
   }
 
   const variantData = await KT_TASK_API.loadKimVariant(kimNumber);
-
-  if (!variantData || !Array.isArray(variantData.tasks) || !variantData.tasks.length) {
+  if (!variantData?.tasks?.length) {
     return;
   }
 
   await KT_TASK_STATE.importSolvedTasksFromKim(variantData, scoreRows);
 
   KT_IMPORTED_KIMS.add(kimNumber);
-  console.log("[kompege tracker] imported solved tasks from KIM", kimNumber);
+
+  if (window.location.pathname === "/variant") {
+    await scanVariantTasks();
+  }
 }
 
 function extractKimNumber(text) {
   const match = text.match(/КИМ №\s*(\d+)/);
-
   return match ? match[1] : null;
 }
 
@@ -108,14 +158,11 @@ function extractKimScoreRows() {
         return;
       }
 
-      const firstCellText = (cells[0].textContent || "").trim();
-      if (firstCellText === "№") {
+      if ((cells[0].textContent || "").trim() === "№") {
         return;
       }
 
-      const scoreText = (cells[1].textContent || "").trim();
-      const score = Number(scoreText);
-
+      const score = Number((cells[1].textContent || "").trim());
       scores.push(Number.isFinite(score) ? score : 0);
     });
   });
