@@ -66,6 +66,50 @@
   border-radius: 12px;
 }
 
+.kt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kt-hint {
+  font-size: 14px;
+  color: #d1d5db;
+  margin-bottom: 10px;
+}
+
+.kt-status {
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.kt-status[data-tone="muted"] {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.kt-status[data-tone="info"] {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.kt-status[data-tone="success"] {
+  color: #dcfce7;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.kt-status[data-tone="error"] {
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
 .kt-center {
   display: flex;
   justify-content: center;
@@ -109,7 +153,7 @@
 .kt-stats button {
   align-self: center;
   padding: 10px 20px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   background: #2563eb;
   color: white;

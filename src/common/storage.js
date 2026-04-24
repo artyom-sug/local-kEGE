@@ -122,6 +122,35 @@ window.KT_STORAGE = {
     await area.remove(window.KT_CONSTANTS.STORAGE_KEYS.TASKS);
   },
 
+  async exportBackupData() {
+    return {
+      format: "kompege-tracker-backup",
+      schemaVersion: 1,
+      exportedAt: KT_UTILS.nowIso(),
+      appVersion: window.KT_CONSTANTS.VERSION,
+      settings: await this.getSettings(),
+      tasks: await this.getTasks()
+    };
+  },
+
+  async importBackupData(backupData) {
+    const normalizedBackup = await this.normalizeBackupData(backupData);
+    const currentSettings = await this.getSettings();
+
+    await this.setTasks(normalizedBackup.tasks);
+    await this.setSettings(
+      this.sanitizeImportedSettings(
+        normalizedBackup.settings,
+        currentSettings
+      )
+    );
+
+    return {
+      importedCount: Object.keys(normalizedBackup.tasks).length,
+      exportedAt: normalizedBackup.exportedAt
+    };
+  },
+
   async updateTask(taskKey, updater) {
     await this.getTasks();
 
@@ -254,6 +283,125 @@ window.KT_STORAGE = {
       difficulty: task.difficulty ?? null,
       updatedAt: task.updatedAt || null
     };
+  },
+
+  async normalizeBackupData(backupData) {
+    if (!this.isPlainObject(backupData)) {
+      throw new Error("Файл повреждён или имеет неверный формат.");
+    }
+
+    const rawTasks =
+      backupData.tasks ??
+      backupData.progress ??
+      backupData[window.KT_CONSTANTS.STORAGE_KEYS.TASKS];
+
+    if (!this.isPlainObject(rawTasks)) {
+      throw new Error("В файле не найден прогресс задач.");
+    }
+
+    const migratedTasks = this.migrateTasksMap(
+      this.sanitizeImportedTasksMap(rawTasks)
+    );
+
+    return {
+      tasks: migratedTasks.tasks,
+      settings: this.isPlainObject(backupData.settings)
+        ? backupData.settings
+        : {},
+      exportedAt:
+        typeof backupData.exportedAt === "string"
+          ? backupData.exportedAt
+          : null
+    };
+  },
+
+  sanitizeImportedTasksMap(rawTasks) {
+    const nextTasks = {};
+
+    for (const [taskKey, task] of Object.entries(rawTasks || {})) {
+      const normalizedTask = this.normalizeImportedTask(taskKey, task);
+
+      if (!normalizedTask) {
+        continue;
+      }
+
+      const normalizedKey = this.getNormalizedTaskKey(taskKey, normalizedTask);
+      const previousTask = nextTasks[normalizedKey];
+
+      if (!previousTask) {
+        nextTasks[normalizedKey] = normalizedTask;
+        continue;
+      }
+
+      nextTasks[normalizedKey] = this.mergeTaskRecords(
+        previousTask,
+        normalizedTask
+      );
+    }
+
+    return nextTasks;
+  },
+
+  normalizeImportedTask(taskKey, task) {
+    if (!this.isPlainObject(task)) {
+      return null;
+    }
+
+    const parsedKey = KT_UTILS.parseTaskProgressKey(taskKey);
+    const taskId = KT_UTILS.safeText(task.taskId ?? parsedKey.taskId).trim();
+    const number = KT_UTILS.toPositiveInt(task.number ?? parsedKey.number);
+    const normalizedTask = {
+      solved: task.solved !== false,
+      taskId: taskId || null,
+      number,
+      difficulty: this.normalizeDifficulty(task.difficulty),
+      updatedAt: this.normalizeUpdatedAt(task.updatedAt)
+    };
+
+    if (!this.shouldPersistTask(normalizedTask)) {
+      return null;
+    }
+
+    return normalizedTask;
+  },
+
+  sanitizeImportedSettings(nextSettings, currentSettings) {
+    const current =
+      currentSettings && typeof currentSettings === "object"
+        ? currentSettings
+        : window.KT_CONSTANTS.DEFAULT_SETTINGS;
+
+    return {
+      ...current,
+      extensionEnabled:
+        nextSettings?.extensionEnabled !== undefined
+          ? Boolean(nextSettings.extensionEnabled)
+          : current.extensionEnabled,
+      // Хранилище не переключаем импортом, чтобы бэкап не менял среду.
+      storageArea:
+        current.storageArea ||
+        window.KT_CONSTANTS.DEFAULT_SETTINGS.storageArea
+    };
+  },
+
+  normalizeDifficulty(value) {
+    const number = Number(value);
+    return Number.isInteger(number) ? number : null;
+  },
+
+  normalizeUpdatedAt(value) {
+    const timestamp =
+      typeof value === "string" ? Date.parse(value) : Number.NaN;
+
+    if (!Number.isFinite(timestamp)) {
+      return null;
+    }
+
+    return new Date(timestamp).toISOString();
+  },
+
+  isPlainObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
   },
 
   migrateTasksMap(tasks) {
