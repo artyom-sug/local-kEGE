@@ -1,11 +1,45 @@
 window.KT_TASK_STATE = {
-  async getTask(taskId) {
-    const tasks = await KT_STORAGE.getTasks();
-    return tasks[taskId] || null;
+  createTaskContext({ taskId, number, relatedNumbers = [] }) {
+    const normalizedTaskId = KT_UTILS.safeText(taskId).trim();
+    const normalizedNumber = KT_UTILS.toPositiveInt(number);
+    const numbers = KT_UTILS.uniqueNumbers([
+      normalizedNumber,
+      ...relatedNumbers
+    ]);
+
+    if (!normalizedTaskId || normalizedNumber === null || !numbers.length) {
+      return null;
+    }
+
+    return {
+      taskId: normalizedTaskId,
+      number: normalizedNumber,
+      relatedNumbers: numbers,
+      key: this.buildTaskKey(normalizedTaskId, normalizedNumber)
+    };
   },
 
-  async ensureMeta(taskId) {
-    const existing = await this.getTask(taskId);
+  buildTaskKey(taskId, number) {
+    return KT_UTILS.buildTaskProgressKey(taskId, number);
+  },
+
+  async getTask(taskId, number) {
+    const tasks = await KT_STORAGE.getTasks();
+    const taskKey = this.buildTaskKey(taskId, number);
+    return taskKey ? tasks[taskKey] || null : null;
+  },
+
+  async ensureMeta(taskId, number) {
+    const taskContext = this.createTaskContext({
+      taskId,
+      number
+    });
+
+    if (!taskContext) {
+      return null;
+    }
+
+    const existing = await this.getTask(taskContext.taskId, taskContext.number);
 
     if (
       existing &&
@@ -16,31 +50,89 @@ window.KT_TASK_STATE = {
       return existing;
     }
 
-    const meta = await KT_TASK_API.loadTaskMeta(taskId);
+    const meta = await this.resolveTaskMeta(taskContext.taskId, taskContext.number);
 
-    return await KT_STORAGE.updateTask(taskId, (prev) => ({
+    return await KT_STORAGE.updateTask(taskContext.key, (prev) => ({
       ...prev,
       ...meta
     }));
   },
 
-  async setSolved(taskId, solved) {
-    let task = await this.getTask(taskId);
+  async resolveTaskMeta(taskId, number) {
+    const normalizedTaskId = KT_UTILS.safeText(taskId).trim();
+    const normalizedNumber = KT_UTILS.toPositiveInt(number);
+    const apiMeta = await KT_TASK_API.loadTaskMeta(normalizedTaskId);
+    const matchedEntry =
+      apiMeta.entries.find((entry) => entry.number === normalizedNumber) || null;
 
-    if (
-      !task ||
-      task.number === undefined ||
-      task.taskId === undefined ||
-      task.difficulty === undefined
-    ) {
-      task = await this.ensureMeta(taskId);
+    return {
+      number: normalizedNumber ?? matchedEntry?.number ?? null,
+      taskId: matchedEntry?.taskId || apiMeta.taskId || normalizedTaskId,
+      difficulty: matchedEntry?.difficulty ?? apiMeta.difficulty ?? null
+    };
+  },
+
+  async setSolved(taskId, number, solved) {
+    const taskContext = this.createTaskContext({
+      taskId,
+      number
+    });
+
+    if (!taskContext) {
+      return null;
     }
 
-    return await KT_STORAGE.updateTask(taskId, (prev) => ({
+    const task = await this.ensureMeta(taskContext.taskId, taskContext.number);
+
+    if (task?.solved === solved) {
+      return task;
+    }
+
+    return await KT_STORAGE.updateTask(taskContext.key, (prev) => ({
       ...prev,
+      number: prev.number ?? task?.number ?? taskContext.number,
+      taskId: prev.taskId ?? task?.taskId ?? taskContext.taskId,
+      difficulty:
+        prev.difficulty !== undefined
+          ? prev.difficulty
+          : task?.difficulty ?? null,
       solved,
-      updatedAt: new Date().toISOString()
+      updatedAt: KT_UTILS.nowIso()
     }));
+  },
+
+  async setSolvedForContext(taskContext, solved) {
+    if (!taskContext) {
+      return;
+    }
+
+    for (const number of taskContext.relatedNumbers) {
+      await this.setSolved(taskContext.taskId, number, solved);
+    }
+  },
+
+  async getToggleState(taskContext) {
+    if (!taskContext) {
+      return {
+        checked: false,
+        partial: false
+      };
+    }
+
+    const tasks = await KT_STORAGE.getTasks();
+    const solvedCount = taskContext.relatedNumbers.reduce((count, number) => {
+      const taskKey = this.buildTaskKey(taskContext.taskId, number);
+      return tasks[taskKey]?.solved ? count + 1 : count;
+    }, 0);
+
+    return {
+      checked:
+        solvedCount > 0 &&
+        solvedCount === taskContext.relatedNumbers.length,
+      partial:
+        solvedCount > 0 &&
+        solvedCount < taskContext.relatedNumbers.length
+    };
   },
 
   isSolvedByExamScore(taskNumber, score) {
@@ -75,15 +167,24 @@ window.KT_TASK_STATE = {
         continue;
       }
 
-      const storageTaskId = String(apiTask.taskId);
+      const taskId = KT_UTILS.safeText(apiTask.taskId).trim();
+      const number = KT_UTILS.toPositiveInt(apiTask.number);
+      const taskKey = this.buildTaskKey(taskId, number);
 
-      await KT_STORAGE.updateTask(storageTaskId, (prev) => ({
+      if (!taskKey) {
+        continue;
+      }
+
+      await KT_STORAGE.updateTask(taskKey, (prev) => ({
         ...prev,
         solved: true,
-        number: apiTask.number,
-        taskId: apiTask.taskId,
-        difficulty: apiTask.difficulty,
-        updatedAt: new Date().toISOString()
+        number,
+        taskId,
+        difficulty: apiTask.difficulty ?? null,
+        updatedAt:
+          prev.solved === true
+            ? prev.updatedAt || KT_UTILS.nowIso()
+            : KT_UTILS.nowIso()
       }));
     }
   }

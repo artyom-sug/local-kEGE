@@ -45,6 +45,14 @@
   transform: translateX(1em);
 }
 
+.kt-toggle-input[data-kt-state="partial"] + .kt-toggle-label {
+  background: #f59e0b;
+}
+
+.kt-toggle-input[data-kt-state="partial"] + .kt-toggle-label::after {
+  transform: translateX(0.5em);
+}
+
 .kt-stats {
   padding: 20px;
   display: flex;

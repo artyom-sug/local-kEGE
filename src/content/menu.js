@@ -109,7 +109,7 @@ window.KT_MENU = {
     const recent = solvedTasks
       .sort((a, b) => new Date(b[1].updatedAt) - new Date(a[1].updatedAt))
       .slice(0, 10)
-      .map(([id]) => id);
+      .map(([taskKey, task]) => KT_UTILS.formatTaskLabel(task, taskKey));
 
     document.getElementById("kt-recent").textContent =
       "Последние: " + (recent.join(", ") || "—");

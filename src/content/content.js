@@ -90,10 +90,16 @@ async function scanArchiveTasks() {
   const nodes = document.querySelectorAll("#app span.details");
 
   for (const el of nodes) {
-    const taskId = extractNumber(el.textContent || "");
+    const taskId = extractTaskId(el.textContent || "");
     if (!taskId) continue;
 
-    await KT_TASK_DOM.mountOrUpdateToggle(el, taskId);
+    const taskContext = KT_TASK_STATE.createTaskContext({
+      taskId,
+      number: extractArchivePrimaryNumber(el),
+      relatedNumbers: extractArchiveRelatedNumbers(el)
+    });
+
+    await KT_TASK_DOM.mountOrUpdateToggle(el, taskContext);
   }
 }
 
@@ -101,10 +107,10 @@ async function scanVariantTasks() {
   const nodes = document.querySelectorAll("#app .task .text .text-bolder");
 
   for (const el of nodes) {
-    const taskId = extractNumber(el.textContent || "");
-    if (!taskId) continue;
+    const taskContext = extractTaskContextFromTitle(el);
+    if (!taskContext) continue;
 
-    await KT_TASK_DOM.mountOrUpdateToggle(el, taskId);
+    await KT_TASK_DOM.mountOrUpdateToggle(el, taskContext);
   }
 }
 
@@ -112,37 +118,35 @@ async function scanCourseLikeTask() {
   const title = document.querySelector("#app .task .text .text-bolder");
   if (!title) return;
 
-  const taskId = extractNumber(title.textContent || "");
-  if (!taskId) return;
+  const taskContext = extractTaskContextFromTitle(title);
+  if (!taskContext) return;
 
-  await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
-  await applyCourseLikeState(title, taskId);
+  await KT_TASK_DOM.mountOrUpdateToggle(title, taskContext);
+  await applyCourseLikeState(title, taskContext);
 }
 
-async function applyCourseLikeState(titleElement, taskId) {
+async function applyCourseLikeState(titleElement, taskContext) {
   const current = document.querySelector("#navTasks .block.task-current");
   if (!current) return;
 
   const isSolved = current.classList.contains("task-good");
 
   if (isSolved) {
-    await KT_TASK_STATE.setSolved(taskId, true);
+    await KT_TASK_STATE.setSolvedForContext(taskContext, true);
   }
 
-  const toggle = titleElement.querySelector(`[data-kt-toggle-for="${taskId}"]`);
+  const toggle = titleElement.querySelector(
+    `[data-kt-toggle-for="${taskContext.key}"]`
+  );
 
   if (toggle) {
-    const input = toggle.querySelector("input");
-
-    if (input && isSolved) {
-      input.checked = true;
-    }
+    await KT_TASK_DOM.syncToggleState(toggle, taskContext);
   }
 }
 
 const KT_VARIANT_WATCHER = {
   interval: null,
-  lastTaskId: null,
+  lastTaskKey: null,
 
   start() {
     if (this.interval) return;
@@ -156,12 +160,12 @@ const KT_VARIANT_WATCHER = {
       const title = document.querySelector("#app .task .text .text-bolder");
       if (!title) return;
 
-      const taskId = extractNumber(title.textContent || "");
-      if (!taskId) return;
+      const taskContext = extractTaskContextFromTitle(title);
+      if (!taskContext) return;
 
-      if (taskId !== this.lastTaskId) {
-        this.lastTaskId = taskId;
-        await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
+      if (taskContext.key !== this.lastTaskKey) {
+        this.lastTaskKey = taskContext.key;
+        await KT_TASK_DOM.mountOrUpdateToggle(title, taskContext);
       }
     }, 250);
   }
@@ -169,7 +173,7 @@ const KT_VARIANT_WATCHER = {
 
 const KT_COURSE_WATCHER = {
   interval: null,
-  lastTaskId: null,
+  lastTaskKey: null,
 
   start() {
     if (this.interval) return;
@@ -185,22 +189,65 @@ const KT_COURSE_WATCHER = {
       const title = document.querySelector("#app .task .text .text-bolder");
       if (!title) return;
 
-      const taskId = extractNumber(title.textContent || "");
-      if (!taskId) return;
+      const taskContext = extractTaskContextFromTitle(title);
+      if (!taskContext) return;
 
-      if (taskId !== this.lastTaskId) {
-        this.lastTaskId = taskId;
-        await KT_TASK_DOM.mountOrUpdateToggle(title, taskId);
+      if (taskContext.key !== this.lastTaskKey) {
+        this.lastTaskKey = taskContext.key;
+        await KT_TASK_DOM.mountOrUpdateToggle(title, taskContext);
       }
 
-      await applyCourseLikeState(title, taskId);
+      await applyCourseLikeState(title, taskContext);
     }, 300);
   }
 };
 
-function extractNumber(text) {
+function extractTaskId(text) {
   const match = text.match(/№\s*(\d+)/);
   return match ? match[1] : null;
+}
+
+function extractExamNumber(text) {
+  const match = text.match(/Задание\s*(\d+)/i);
+  return match ? KT_UTILS.toPositiveInt(match[1]) : null;
+}
+
+function extractTaskContextFromTitle(titleElement) {
+  return KT_TASK_STATE.createTaskContext({
+    taskId: extractTaskId(titleElement?.textContent || ""),
+    number: extractExamNumber(titleElement?.textContent || "")
+  });
+}
+
+function extractArchivePrimaryNumber(detailsElement) {
+  const row = detailsElement?.closest("tr");
+  const numberText = row?.querySelector(".number")?.textContent || "";
+  return KT_UTILS.toPositiveInt(numberText);
+}
+
+function extractArchiveRelatedNumbers(detailsElement) {
+  const row = detailsElement?.closest("tr");
+
+  if (!row) {
+    return [];
+  }
+
+  const numbers = [];
+  const primaryNumber = extractArchivePrimaryNumber(detailsElement);
+
+  if (primaryNumber !== null) {
+    numbers.push(primaryNumber);
+  }
+
+  row.querySelectorAll("b").forEach((node) => {
+    const match = (node.textContent || "").match(/Задание\s*(\d+)/i);
+
+    if (match) {
+      numbers.push(match[1]);
+    }
+  });
+
+  return KT_UTILS.uniqueNumbers(numbers);
 }
 
 async function tryImportKimResults() {

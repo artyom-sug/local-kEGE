@@ -1,27 +1,30 @@
 window.KT_TASK_DOM = {
   updateLocks: new WeakMap(),
 
-  async createToggle(taskId) {
-    const existingTask = await KT_TASK_STATE.getTask(taskId);
-
+  async createToggle(taskContext) {
     const wrapper = document.createElement("span");
     wrapper.className = KT_CONSTANTS.CSS.TOGGLE_WRAPPER;
-    wrapper.setAttribute("data-kt-toggle-for", taskId);
+    wrapper.setAttribute("data-kt-toggle-for", taskContext.key);
 
-    const inputId = `kt-toggle-${taskId}`;
+    const inputId = `kt-toggle-${taskContext.key.replace(/[^\w-]/g, "-")}`;
 
     const input = document.createElement("input");
     input.type = "checkbox";
     input.id = inputId;
     input.className = KT_CONSTANTS.CSS.TOGGLE_INPUT;
-    input.checked = Boolean(existingTask?.solved);
 
     const label = document.createElement("label");
     label.className = KT_CONSTANTS.CSS.TOGGLE_LABEL;
     label.setAttribute("for", inputId);
 
+    await this.syncToggleInput(input, taskContext);
+
     input.addEventListener("change", async () => {
-      await KT_TASK_STATE.setSolved(taskId, input.checked);
+      input.indeterminate = false;
+      input.removeAttribute("data-kt-state");
+
+      await KT_TASK_STATE.setSolvedForContext(taskContext, input.checked);
+      await this.syncToggleInput(input, taskContext);
     });
 
     wrapper.appendChild(input);
@@ -52,7 +55,34 @@ window.KT_TASK_DOM = {
     });
   },
 
-  async mountOrUpdateToggle(container, taskId) {
+  async syncToggleInput(input, taskContext) {
+    const state = await KT_TASK_STATE.getToggleState(taskContext);
+
+    input.checked = state.checked;
+    input.indeterminate = state.partial;
+
+    if (state.partial) {
+      input.setAttribute("data-kt-state", "partial");
+    } else {
+      input.removeAttribute("data-kt-state");
+    }
+  },
+
+  async syncToggleState(toggleElement, taskContext) {
+    const input = toggleElement.querySelector("input");
+
+    if (!input) {
+      return;
+    }
+
+    await this.syncToggleInput(input, taskContext);
+  },
+
+  async mountOrUpdateToggle(container, taskContext) {
+    if (!taskContext) {
+      return;
+    }
+
     const previousUpdate = this.updateLocks.get(container) || Promise.resolve();
 
     const nextUpdate = previousUpdate
@@ -60,7 +90,7 @@ window.KT_TASK_DOM = {
       .then(async () => {
         const toggles = this.getAllToggles(container);
         const matchingToggle = toggles.find(
-          (toggle) => toggle.getAttribute("data-kt-toggle-for") === taskId
+          (toggle) => toggle.getAttribute("data-kt-toggle-for") === taskContext.key
         );
 
         if (matchingToggle) {
@@ -70,19 +100,13 @@ window.KT_TASK_DOM = {
             }
           });
 
-          const input = matchingToggle.querySelector("input");
-          const task = await KT_TASK_STATE.getTask(taskId);
-
-          if (input) {
-            input.checked = Boolean(task?.solved);
-          }
-
+          await this.syncToggleState(matchingToggle, taskContext);
           return;
         }
 
         toggles.forEach((toggle) => toggle.remove());
 
-        const toggle = await this.createToggle(taskId);
+        const toggle = await this.createToggle(taskContext);
         container.appendChild(toggle);
       });
 
